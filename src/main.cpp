@@ -1,18 +1,17 @@
 #include <Arduino.h>
 
-// put function declarations here:
-int myFunction(int, int);
+#include "motorControl.h"
+#include "microROS.h"
 
-void setup() {
-  // put your setup code here, to run once:
-  int result = myFunction(2, 3);
+microROS micro_ROS;
+
+void setup() { 
+  pidSetup();
+  micro_ROS.initialize();
+  micro_ROS.subscriber_define();
+  micro_ROS.executors_start();
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
-}
-
-// put function definitions here:
-int myFunction(int x, int y) {
-  return x + y;
+  micro_ROS.start_receiving_msgs();
 }
