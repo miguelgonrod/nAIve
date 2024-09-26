@@ -17,6 +17,14 @@ class microROS{
         void subscriber_define();
         static void cmd_vel_callback(const void *msg_recv);
         void start_receiving_msgs();
+        
+    private:
+        rcl_subscription_t cmd_vel_sub;
+        geometry_msgs__msg__Twist msg;
+        rclc_executor_t executor;
+        rclc_support_t support;
+        rcl_allocator_t allocator;
+        rcl_node_t node;
 };
 
 #endif

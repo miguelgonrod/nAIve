@@ -1,62 +1,74 @@
 #include <motorControl.h>
 
-ESP32Encoder encoder;
-long currentPosition = 0;
-long previousPosition = 0;
+ESP32Encoder encoder1;
+ESP32Encoder encoder2;
 
-double setpoint = 0, input = 0, output = 0;
-double Kp = 2.0, Ki = 5.0, Kd = 1.0;
-PID myPID(&input, &output, &setpoint, Kp, Ki, Kd, DIRECT);
+double Kp1 = 2, Ki1 = 5, Kd1 = 1;
+double Kp2 = 2, Ki2 = 5, Kd2 = 1;
+
+double vel_deseada_motor1, vel_actual_motor1, salida_motor1;
+PID pid_motor1(&vel_actual_motor1, &salida_motor1, &vel_deseada_motor1, Kp1, Ki1, Kd1, DIRECT);
+
+double vel_deseada_motor2, vel_actual_motor2, salida_motor2;
+PID pid_motor2(&vel_actual_motor2, &salida_motor2, &vel_deseada_motor2, Kp2, Ki2, Kd2, DIRECT);
+
+float vel_linear, vel_angular;
 
 void pidSetup(){
-    pinMode(ENA, OUTPUT);
     pinMode(IN1, OUTPUT);
     pinMode(IN2, OUTPUT);
+    pinMode(ENA, OUTPUT);
+    pinMode(IN3, OUTPUT);
+    pinMode(IN4, OUTPUT);
+    pinMode(ENB, OUTPUT);
 
-    myPID.SetMode(AUTOMATIC);
-    myPID.SetOutputLimits(-255, 255);
-
-    encoder.attachFullQuad(ENCODER_PIN_A, ENCODER_PIN_B);
-    encoder.clearCount();
+    ESP32Encoder::useInternalWeakPullResistors = puType::up;
+    encoder1.attachFullQuad(ENCODER1_A, ENCODER1_B);
+    encoder2.attachFullQuad(ENCODER2_A, ENCODER2_B);
 
     Serial.begin(115200);
+
+    pid_motor1.SetMode(AUTOMATIC);
+    pid_motor2.SetMode(AUTOMATIC);
+
+    pid_motor1.SetOutputLimits(-255, 255);
+    pid_motor2.SetOutputLimits(-255, 255);
 }
 
-void applyPID(){
-    input = encoder.getCount();
+void applyPID(float linearX, float angularZ){
+    vel_deseada_motor1 = vel_linear - distancia_entre_ruedas * vel_angular / 2;
+    vel_deseada_motor2 = vel_linear + distancia_entre_ruedas * vel_angular / 2;
 
-    myPID.Compute();
+    vel_actual_motor1 = getMotorSpeed(encoder1.getCount());
+    vel_actual_motor2 = getMotorSpeed(encoder2.getCount());
 
-    controlMotor(output);
+    pid_motor1.Compute();
+    pid_motor2.Compute();
 
-    Serial.print("Setpoint: "); Serial.print(setpoint);
-    Serial.print(" | Input: "); Serial.print(input);
-    Serial.print(" | Output: "); Serial.println(output);
+    controlarMotor(ENA, IN1, IN2, salida_motor1);
+    controlarMotor(ENB, IN3, IN4, salida_motor2);
+
 }
 
-void controlMotor(double output) {
-    if(output > 0) {
+void controlarMotor(int enable_pin, int pin1, int pin2, double pwm_value) {
+    if(pwm_value > 0) {
         // Motor gira en una dirección
-        digitalWrite(IN1, HIGH);
-        digitalWrite(IN2, LOW);
-        analogWrite(ENA, output);  // Controlar velocidad con PWM
-    }
-    else if (output < 0){
-        digitalWrite(IN1, LOW);
-        digitalWrite(IN2, HIGH);
-        digitalWrite(ENA, -output);
+        digitalWrite(pin1, HIGH);
+        digitalWrite(pin2, LOW);
     }
     else{
-        digitalWrite(IN1, LOW);
-        digitalWrite(IN2, LOW);
-        digitalWrite(ENA, 0);
+        digitalWrite(pin1, LOW);
+        digitalWrite(pin2, LOW);
+        pwm_value = -pwm_value;
     }
+    analogWrite(enable_pin, constrain(pwm_value, 0, 255));
 }
 
-void setNewSetpoint(long newSetpoint){
-    setpoint = newSetpoint;
+double getMotorSpeed(long encoder_ticks){
+    double velocidad = encoder_ticks * 0.00087266; // 0.00087266 = 2 * PI / 3600
+    return velocidad;
 }
 
-void adjustPID(double newKp, double newKi, double newKd){
+void adjustPID(PID myPID, double newKp, double newKi, double newKd){
     myPID.SetTunings(newKp, newKi, newKd);
 }

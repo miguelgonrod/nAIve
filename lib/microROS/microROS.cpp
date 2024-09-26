@@ -1,14 +1,6 @@
 #include "microROS.h"
 #include "motorControl.h"
 
-rcl_subscription_t cmd_vel_sub;
-geometry_msgs__msg__Twist msg;
-
-rclc_executor_t executor;
-rclc_support_t support;
-rcl_allocator_t allocator;
-rcl_node_t node;
-
 microROS::microROS(){
 }
 
@@ -52,13 +44,11 @@ void microROS::subscriber_define(){
 void microROS::cmd_vel_callback(const void *msg_recv){
     const geometry_msgs__msg__Twist * recieved_data = (const geometry_msgs__msg__Twist *) msg_recv ;
     
-    double setpoint2 = recieved_data->linear.x * 100;  // Escala para convertir m/s a valores de setpoint
-    setNewSetpoint(setpoint2);
+    applyPID(recieved_data->linear.x, recieved_data->angular.z);
 
 }
 
 void microROS::start_receiving_msgs(){
     rclc_executor_spin_some(&executor, RCL_MS_TO_NS(100));
-    applyPID();
     delay(100);
 }
